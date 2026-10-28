@@ -1,0 +1,9 @@
+upstreams:
+  - name: digital-human-koubo
+    upstream: andyhuo520/digital-human-koubo
+    branch: main
+
+  # 以后新增软件，在下面照格式追加一段即可，workflow 和脚本都不用改：
+  # - name: another-software
+  #   upstream: someuser/another-software
+  #   branch: main
