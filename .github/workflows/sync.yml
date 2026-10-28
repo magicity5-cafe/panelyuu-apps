@@ -1,0 +1,27 @@
+name: Sync All Upstream Apps
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: '0 2 1,16 * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout my repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Run sync script
+        run: bash scripts/sync-upstreams.sh
