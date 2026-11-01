@@ -57,6 +57,7 @@
 - **按内容推荐剪辑风格**：Agent 先诊断内容，推荐 2 种风格并附预览图，一次问完（风格 · 比例时长 · 花字强度 · 主播）。
 - **48 个包装组件**：逐帧拆了 25 支头部博主视频（MrBeast、Mark Rober、Ryan Trahan、MKBHD、影视飓风、何同学、Johnny Harris、Vox、Kurzgesagt、回形针、半佛仙人、差评、毕导）。每种风格自带默认包装，想加减直接说。
 - **景深字**：大字 / 数字放在背景和人之间（macOS Vision 人像分割 → 透明视频 → 三层合成）。
+- **封面即首帧**：每条片子默认出封面（16:9 / 9:16 / 3:4：主播帧 + 钩子大字 + 证据卡），并接成成片第一帧停 0.5 秒。平台默认拿首帧当封面，不用再单独上传。
 - **多语言**：英、日、韩、法、西、阿拉伯语实测，whisper 回听准确率 94–100%。
 - **多种 Agent 都能用**：标准 `SKILL.md` Agent Skill + 脚本，只要能装 Skill、能接远程 MCP、能在本机跑命令，就能驱动整条流程。
 
@@ -72,6 +73,7 @@
               6. 逐字时间轴（tl.json）
               7. Remotion 剪辑：风格模板 + 默认包装（+ 你点名的手法）
               8. 渲染 → 看过渡中间帧 → 响度（-14 / -16 LUFS）
+              9. 封面：挑主播帧 → 16:9 / 9:16 / 3:4 → 接成首帧（停 0.5 秒）
 ```
 
 <p align="center"><img src="docs/images/ad-breakdown.jpg" width="820" alt="直播间广告 5 段，每段用的包装"></p>
@@ -110,7 +112,7 @@ cd digital-human-koubo
 
 ### 2 · 把两个 Skill 装进你的 Agent
 
-仓库里有两个 Skill：`digital-human-koubo`（主 Skill）和 `finance-explainer`（风格 A「财经 / 科技解说」的引擎）。
+仓库里有两个 Skill：`digital-human-koubo`（主 Skill）和 `finance-explainer`（纯图表、不出镜的财经长片引擎，可选；风格 A 默认用主 Skill 里的 `templates/lin-169`）。
 
 **Claude Code**
 ```bash
@@ -145,6 +147,7 @@ cd skills && zip -r ../digital-human-skills.zip digital-human-koubo finance-expl
 |---|---|---|---|
 | ffmpeg | `brew install ffmpeg` | `winget install Gyan.FFmpeg` | `sudo apt install ffmpeg` |
 | Python 3 + numpy + Pillow | `brew install python` 后 `python3 -m pip install numpy pillow` | `winget install Python.Python.3.12` | `sudo apt install python3-pip` |
+| Playwright + Chromium（封面排版） | `python3 -m pip install playwright && python3 -m playwright install chromium` | 同左 | 同左 |
 | Node.js 18+（Remotion） | `brew install node` | `winget install OpenJS.NodeJS.LTS` | `nvm install --lts` |
 | whisper.cpp（`whisper-cli`） | `brew install whisper-cpp` | [Releases 下载](https://github.com/ggerganov/whisper.cpp/releases) | [源码编译](https://github.com/ggerganov/whisper.cpp) |
 | whisper 模型 | 下载 [`ggml-medium-q5_0.bin`](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-q5_0.bin) 放到 `~/models/`（或 `export WHISPER_MODEL=模型路径`） | 同左 | 同左 |
@@ -222,7 +225,7 @@ python3 ~/.claude/skills/digital-human-koubo/scripts/make_assets.py
 
 | 风格 | 比例 | 时长 | 适合 | 模板 |
 |---|---|---|---|---|
-| **A** 小林式解说（财经 / 科技事件） | 16:9 | 3–20 分钟 | 事件、数据、「为什么」 | `finance-explainer` 引擎 |
+| **A** 小林式解说（财经 / 科技事件） | 16:9 | 3–20 分钟 | 事件、数据、「为什么」 | `templates/lin-169`（plan.json 驱动：景深字、题板+主播小窗、B-roll、公式逐项长出、算例、图表） |
 | **B** 网红花字口播 | 9:16 | 30–120 秒 | 安利、带货、种草、吐槽 | `templates/huazi-916`（数据驱动） |
 | **C** 发布解读 | 16:9 | 30–90 秒 | 新品、新模型发布 | `templates/reference/launch-169` |
 | **D** 保姆级教程 | 16:9 | 3–8 分钟 | 几步做出 XX、工具上手 | `templates/reference/tutorial-169` |
@@ -302,12 +305,16 @@ skills/
     references/                   风格菜单 · 包装组件 · 手法库 · 安装 · 拆解报告
     scripts/                      build_tasks · rangedl · assemble · align · check_edit · cutout_video
                                   voicefx/unify · doctor · new_edit · make_assets
+                                  make_cover · cover_first（封面 + 首帧）
+                                  lin_scenes · lin_subs · lin_sfx · lin_mix（风格 A 分镜、字幕、音效、混音）
+                                  misread_check · patch_words（查念错字、只换错句保口型）
     templates/
       huazi-916/                  9:16 数据驱动花字口播模板（edit.json）
       packaging/                  48 个组件 + 图鉴工程
+      lin-169/                    16:9 小林式解说模板（scenes.json 驱动，13 种场景）
       reference/                  launch-169 · tutorial-169 · multihost-169
     assets/                       风格预览图 · 包装图鉴 · 数字人参考图
-  finance-explainer/              风格 A 引擎（episode.json 拍表、检索工具）
+  finance-explainer/              纯图表财经长片引擎（episode.json 拍表、检索工具）
 docs/                             README 用的图片、GIF 预览、封面帧
 ```
 
@@ -319,6 +326,8 @@ docs/                             README 用的图片、GIF 预览、封面帧
 - Grok 9:16 720p 是 **720×1280**，别拉成别的比例。
 - expo 缓动到不了终点（99.9 四舍五入成 100）→ 计数动画结束时强制落在精确值。
 - 主播视频轨一定要静音；两条声音差几毫秒叠在一起会刺耳（梳状滤波）。
+- 几十段口播直接拼接，声音会一段段累积落后口型（实测 44 段到 4:43 晚 0.38 秒）→ `assemble.py` 拼接前把每段音频补齐到画面长度，并校验音画等长。
+- whisper 带原文提示会把念错的字「纠正」回去 → `misread_check.py` 按停顿切句、不带原文转写；念错的用 `patch_words.py` 只换那一句（克隆音拉到原句长度），口型不受影响，不用整片换音色。
 
 ## 使用红线
 
